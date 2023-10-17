@@ -1,0 +1,28 @@
+[tool.black]
+line-length = 79
+
+[tool.ruff]
+select = [
+  "E",  # pycodestyle
+  "F",  # pyflakes
+  "I",  # isort
+]
+
+[tool.mypy]
+ignore_missing_imports = "True"
+disallow_untyped_defs = "True"
+exclude = ["notebooks"]
+
+[tool.pytest.ini_options]
+# Registering custom markers.
+# https://docs.pytest.org/en/7.1.x/example/markers.html#registering-markers
+markers = [
+  "requires: mark tests as requiring a specific library",
+  "scheduled: mark tests to run in scheduled testing",
+]
+
+[project]
+name = "ob-sync"
+description = "Sync server for Obsidian"
+requires-python = ">=3.9"
+dynamic = ["version"]
