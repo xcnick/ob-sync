@@ -25,7 +25,7 @@ from obsync.db.vault_files_schema import (
     restore_file,
     snapshot,
 )
-from obsync.utils.config import MAX_STORAGE_BYTES
+from obsync.utils.config import MAX_STORAGE_BYTES, secret
 
 
 class ChannelManager(BaseModel):
@@ -52,7 +52,7 @@ channels = {}
 async def init_handler(req: str) -> (Dict, VaultModel):
     initial = json.loads(req)
 
-    email = get_jwt_email(jwt_string=initial["token"])
+    email = get_jwt_email(jwt_string=initial["token"], secret=secret)
 
     vault_result = get_vault(id=initial["id"], keyhash=initial["keyhash"])
 

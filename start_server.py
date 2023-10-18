@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from obsync.utils.logger import get_logger
 from obsync.utils.config import ADDR_HTTP
 from obsync.handler.vault import VaultHandler
+from obsync.handler.user import UserHandler
 from obsync.handler.websocket import WebSocketHandler
 
 
@@ -18,11 +20,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.route("/{path:path}", methods=["OPTIONS"])
+async def options_handler(path: str):
+    return JSONResponse(content={"message": "ok"}, status_code=200)
+
+
 logger = get_logger()
 logger.info("Starting server...")
 
 vault_handler = VaultHandler()
 app.include_router(vault_handler.router, prefix="/vault")
+
+user_handler = UserHandler()
+app.include_router(user_handler.router, prefix="/user")
 
 websocket_handler = WebSocketHandler()
 app.add_websocket_route("/", websocket_handler.ws_handler)

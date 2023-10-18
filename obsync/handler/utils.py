@@ -1,13 +1,13 @@
 import jwt
-from jwt.exceptions import JWTException
+from jwt.exceptions import InvalidSignatureError
 
 
-def get_jwt_email(jwt_string: str) -> str:
+def get_jwt_email(jwt_string: str, secret: bytes) -> str:
     try:
-        token = jwt.decode(jwt_string, algorithms=["HS256"])
+        token = jwt.decode(jwt=jwt_string, key=secret, algorithms=["HS256"])
         claims = token.get("email")
         if not claims:
-            raise JWTException("invalid token")
+            raise InvalidSignatureError("invalid token")
         return claims
-    except JWTException as e:
+    except InvalidSignatureError as e:
         raise e
