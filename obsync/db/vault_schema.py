@@ -48,17 +48,21 @@ class UserModel(BaseModel):
 
 
 @db_session
-def share_vault_invite(email: str, name: str, vault_id: str) -> ShareModel:
+def share_vault_invite(email: str, name: str, vault_id: UUID) -> ShareModel:
     share = Share(id=uuid1(), email=email, name=name, vault_id=vault_id)
     return ShareModel.model_validate(share)
 
 
 @db_session
-def share_vault_revoke(share_id: UUID, vault_id: UUID, email: str) -> None:
+def share_vault_revoke(share_id: UUID, vault_id: UUID, email: str) -> int:
     if share_id is not None:
-        delete(s for s in Share if s.id == share_id and s.vault_id == vault_id)
+        return delete(
+            s for s in Share if s.id == share_id and s.vault_id == vault_id
+        )
     else:
-        delete(s for s in Share if s.email == email and s.vault_id == vault_id)
+        return delete(
+            s for s in Share if s.email == email and s.vault_id == vault_id
+        )
 
 
 @db_session
@@ -149,7 +153,7 @@ def new_vault(
     vault = Vault(
         id=uuid1(),
         user_email=user_email,
-        created=int(time.time()),
+        created=int(time.time()) * 1000,
         host=DOMAIN_NAME,
         name=name,
         password=password,
@@ -161,8 +165,8 @@ def new_vault(
 
 
 @db_session
-def delete_vault(id: UUID, email: str) -> None:
-    delete(v for v in Vault if v.id == id and v.user_email == email)
+def delete_vault(id: UUID, email: str) -> int:
+    return delete(v for v in Vault if v.id == id and v.user_email == email)
 
 
 @db_session

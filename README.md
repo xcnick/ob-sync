@@ -14,3 +14,11 @@ DB_PATH=${PWD}/db_files uvicorn start_server:app --host 0.0.0.0 --port 3000
 # signup
 DB_PATH=${PWD}/db_files python sign_up.py -n xcnick -e xcnick@163.com -p 1
 ```
+
+## 依赖项
+
+- fastapi
+- uvicorn
+- pyjwt
+- scrypt
+- websockets

@@ -16,7 +16,7 @@ class Vault(db.Entity):
 
     id = PrimaryKey(UUID, auto=True)
     user_email = Required(str)
-    created = Required(int)
+    created = Required(int, size=64)
     host = Required(str)
     name = Required(str)
     password = Required(str)

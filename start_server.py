@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from obsync.utils.logger import get_logger
 from obsync.utils.config import ADDR_HTTP
+from obsync.handler.subscription import SubscriptionHandler
 from obsync.handler.vault import VaultHandler
 from obsync.handler.user import UserHandler
 from obsync.handler.websocket import WebSocketHandler
@@ -28,6 +29,9 @@ async def options_handler(path: str):
 
 logger = get_logger()
 logger.info("Starting server...")
+
+subscription_handler = SubscriptionHandler()
+app.include_router(subscription_handler.router, prefix="/subscription")
 
 vault_handler = VaultHandler()
 app.include_router(vault_handler.router, prefix="/vault")

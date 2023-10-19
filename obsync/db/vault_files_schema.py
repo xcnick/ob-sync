@@ -70,10 +70,7 @@ def restore_file(id: UUID) -> Optional[FileRepsonse]:
 
 @db_session
 def get_vault_size(vault_id: UUID) -> int:
-    size = select(
-        f"COALESCE(SUM(f.size), 0) for f in File if f.vault_id == '{vault_id}'"
-    ).first()
-    return size
+    return select(f.size for f in VaultFile if f.vault_id == vault_id).sum()
 
 
 @db_session
@@ -118,7 +115,6 @@ def insert_metadata(vault_file: VaultFileModel) -> UUID:
     ori_file = select(f for f in VaultFile if f.path == vault_file.path)
     ori_file.newest = False
 
-    # 创建 VaultFile 对象，使用 vault_file 的属性数据
     new_file = VaultFile(**vault_file.model_dump())
     return new_file.id
 
