@@ -1,9 +1,9 @@
 import json
 
 from fastapi import WebSocket, WebSocketDisconnect
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, create_model
 from uuid import UUID
-from typing import Dict
+from typing import Dict, Set
 
 from obsync.handler.utils import get_jwt_email
 from obsync.db.vault_schema import (
@@ -13,7 +13,6 @@ from obsync.db.vault_schema import (
     set_vault_version,
 )
 from obsync.db.vault_files_schema import (
-    VaultFileModel,
     delete_vault_file,
     get_deleted_files,
     get_file,
@@ -30,7 +29,7 @@ from obsync.utils.config import MAX_STORAGE_BYTES, secret
 
 class ChannelManager(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    clients: set()
+    clients: Set = Field(default=set())
 
     def add_client(self, ws: WebSocket) -> None:
         self.clients.add(ws)
@@ -41,7 +40,7 @@ class ChannelManager(BaseModel):
     def is_empty(self):
         return len(self.clients) == 0
 
-    async def broadcast(self, message: str) -> None:
+    async def broadcast(self, message: Dict) -> None:
         for client in self.clients:
             await client.send_json(message)
 
@@ -49,12 +48,14 @@ class ChannelManager(BaseModel):
 channels = {}
 
 
-async def init_handler(req: str) -> (Dict, VaultModel):
+def init_handler(req: str) -> (Dict, VaultModel):
     initial = json.loads(req)
 
     email = get_jwt_email(jwt_string=initial["token"], secret=secret)
 
-    vault_result = get_vault(id=initial["id"], keyhash=initial["keyhash"])
+    vault_result = get_vault(
+        id=UUID(initial["id"]), keyhash=initial["keyhash"]
+    )
 
     if has_access_to_vault(vault_id=vault_result.id, email=email):
         return initial, vault_result
@@ -62,7 +63,7 @@ async def init_handler(req: str) -> (Dict, VaultModel):
         return None, None
 
 
-class WebSocketHandler(BaseModel):
+class WebSocketHandler(object):
     async def ws_handler(self, websocket: WebSocket):
         await websocket.accept()
 
@@ -75,7 +76,10 @@ class WebSocketHandler(BaseModel):
                 return
 
             await websocket.send_json({"res": "ok"})
-            version = int(connection_info["version"])
+            try:
+                version = int(connection_info["version"])
+            except ValueError:
+                version = 0
             if connected_vault.version > version:
                 vault_files = get_vault_files(connected_vault.id)
                 if vault_files is None:
@@ -93,7 +97,7 @@ class WebSocketHandler(BaseModel):
                             "folder": file.folder,
                             "deleted": file.deleted,
                             "device": "insignificantv5",
-                            "uid": file.id,
+                            "uid": str(file.id),
                         }
                     )
 
@@ -124,8 +128,8 @@ class WebSocketHandler(BaseModel):
                     op = m.get("op")
 
                     if op == "size":
-                        size, err = get_vault_size(connected_vault.id)
-                        if err:
+                        size = get_vault_size(connected_vault.id)
+                        if size == 0:
                             await websocket.send_json({"error": str(err)})
                             return
                         await websocket.send_json(
@@ -137,15 +141,14 @@ class WebSocketHandler(BaseModel):
                         )
 
                     elif op == "pull":
-                        pull = m.get("uid")
-                        if pull is None:
+                        pull_uid = m.get("uid", None)
+                        if pull_uid is None:
                             await websocket.send_json(
                                 {"error": "UID is required"}
                             )
                             return
 
-                        uid = UUID(pull)
-                        file = get_file(uid)
+                        file = get_file(UUID(pull_uid))
                         if file is None:
                             await websocket.send_json({"error": str(err)})
                             return
@@ -168,19 +171,31 @@ class WebSocketHandler(BaseModel):
                     elif op == "push":
                         metadata = m
                         vault_uid = None
-                        err = None
 
                         if metadata["deleted"]:
                             delete_vault_file(metadata["path"])
-                            vault_uid = metadata["uid"]
+                            vault_uid = 0
                         else:
+                            vault_meta_file = create_model(
+                                "VaultMetaFileModel",
+                                vault_id=(UUID, ...),
+                                path=(str, ...),
+                                hash=(str, ...),
+                                extension=(str, ...),
+                                size=(int, ...),
+                                created=(int, ...),
+                                modified=(int, ...),
+                                folder=(bool, ...),
+                                deleted=(bool, ...),
+                            )
+
                             vault_uid = insert_metadata(
-                                vault_file=VaultFileModel(
+                                vault_file=vault_meta_file(
                                     vault_id=connected_vault.id,
                                     path=metadata["path"],
                                     hash=metadata["hash"],
                                     extension=metadata["extension"],
-                                    size=metadata["size"],
+                                    size=metadata.get("size", 0),
                                     created=metadata["ctime"],
                                     modified=metadata["mtime"],
                                     folder=metadata["folder"],
@@ -192,7 +207,7 @@ class WebSocketHandler(BaseModel):
                             await websocket.send_json({"error": str(err)})
                             return
 
-                        if metadata["size"] > 0:
+                        if metadata.get("size", 0) > 0:
                             full_binary = bytearray()
                             for _ in range(metadata["pieces"]):
                                 await websocket.send_json({"res": "next"})
@@ -201,12 +216,9 @@ class WebSocketHandler(BaseModel):
                                 )
                                 full_binary += binary_message
 
-                            insert_data(id=vault_uid, data=full_binary)
-                            # if err:
-                            #     await ws.send_json({"error": str(err)})
-                            #     return
+                            insert_data(id=vault_uid, data=bytes(full_binary))
 
-                        metadata["uid"] = vault_uid
+                        metadata["uid"] = str(vault_uid)
                         await channels[connected_vault.id].broadcast(metadata)
 
                         if not version_bumped:
@@ -221,8 +233,22 @@ class WebSocketHandler(BaseModel):
                         if len(files) == 0:
                             await websocket.send_json({"error": str(err)})
                             return
+
+                        file_dumps = list(
+                            map(
+                                lambda f: {
+                                    k: str(v) if isinstance(v, UUID) else v
+                                    for k, v in f.model_dump().items()
+                                    if k != "data"
+                                },
+                                files,
+                            )
+                        )
                         await websocket.send_json(
-                            {"items": files, "more": False}
+                            {
+                                "items": file_dumps,
+                                "more": False,
+                            }
                         )
 
                     elif op == "ping":
@@ -263,4 +289,4 @@ class WebSocketHandler(BaseModel):
                 await close_websocket()
 
         except WebSocketDisconnect:
-            pass
+            await close_websocket()

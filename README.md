@@ -22,3 +22,4 @@ DB_PATH=${PWD}/db_files python sign_up.py -n xcnick -e xcnick@163.com -p 1
 - pyjwt
 - scrypt
 - websockets
+- pony
