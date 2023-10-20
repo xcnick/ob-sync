@@ -1,7 +1,8 @@
 import time
-from uuid import UUID
 from typing import Any, Dict, List, Optional
-from pony.orm import db_session, delete, select, desc
+from uuid import UUID
+
+from pony.orm import db_session, delete, desc, select
 from pydantic import BaseModel, ConfigDict
 
 from obsync.db.vault_files import VaultFile
@@ -85,13 +86,13 @@ def get_vault_files(vault_id: UUID) -> List[VaultFileModel]:
 
 
 @db_session
-def get_file(id: UUID) -> VaultFileModel:
+def get_file(id: UUID) -> Optional[VaultFileModel]:
     file = select(f for f in VaultFile if f.id == id).first()
     return None if file is None else VaultFileModel.model_validate(file)
 
 
 @db_session
-def get_file_history(path: str) -> List[Dict]:
+def get_file_history(path: str) -> List[VaultFileModel]:
     files = select(f for f in VaultFile if f.path == path).order_by(
         desc(VaultFile.modified)
     )

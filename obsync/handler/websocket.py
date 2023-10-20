@@ -1,17 +1,10 @@
 import json
+from typing import Dict, Optional, Set, Tuple
+from uuid import UUID
 
 from fastapi import WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, ConfigDict, Field, create_model
-from uuid import UUID
-from typing import Dict, Set
 
-from obsync.handler.utils import get_jwt_email
-from obsync.db.vault_schema import (
-    VaultModel,
-    get_vault,
-    has_access_to_vault,
-    set_vault_version,
-)
 from obsync.db.vault_files_schema import (
     delete_vault_file,
     get_deleted_files,
@@ -24,6 +17,13 @@ from obsync.db.vault_files_schema import (
     restore_file,
     snapshot,
 )
+from obsync.db.vault_schema import (
+    VaultModel,
+    get_vault,
+    has_access_to_vault,
+    set_vault_version,
+)
+from obsync.handler.utils import get_jwt_email
 from obsync.utils.config import MAX_STORAGE_BYTES, secret
 
 
@@ -37,7 +37,7 @@ class ChannelManager(BaseModel):
     def remove_client(self, ws: WebSocket) -> None:
         self.clients.remove(ws)
 
-    def is_empty(self):
+    def is_empty(self) -> bool:
         return len(self.clients) == 0
 
     async def broadcast(self, message: Dict) -> None:
@@ -48,7 +48,7 @@ class ChannelManager(BaseModel):
 channels = {}
 
 
-def init_handler(req: str) -> (Dict, VaultModel):
+def init_handler(req: str) -> Tuple[Optional[Dict], Optional[VaultModel]]:
     initial = json.loads(req)
 
     email = get_jwt_email(jwt_string=initial["token"], secret=secret)
@@ -64,7 +64,7 @@ def init_handler(req: str) -> (Dict, VaultModel):
 
 
 class WebSocketHandler(object):
-    async def ws_handler(self, websocket: WebSocket):
+    async def ws_handler(self, websocket: WebSocket) -> None:
         await websocket.accept()
 
         err = "error"
@@ -116,7 +116,7 @@ class WebSocketHandler(object):
 
             channels[connected_vault.id].add_client(websocket)
 
-            async def close_websocket():
+            async def close_websocket() -> None:
                 channels[connected_vault.id].remove_client(websocket)
                 if channels[connected_vault.id].is_empty():
                     del channels[connected_vault.id]

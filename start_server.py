@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from obsync.utils.logger import get_logger
-from obsync.utils.config import ADDR_HTTP
-from obsync.handler.subscription import SubscriptionHandler
-from obsync.handler.vault import VaultHandler
-from obsync.handler.user import UserHandler
-from obsync.handler.websocket import WebSocketHandler
+from fastapi.responses import JSONResponse
 
+from obsync.handler.subscription import SubscriptionHandler
+from obsync.handler.user import UserHandler
+from obsync.handler.vault import VaultHandler
+from obsync.handler.websocket import WebSocketHandler
+from obsync.utils.config import ADDR_HTTP
+from obsync.utils.logger import get_logger
 
 app = FastAPI()
 
@@ -23,7 +23,7 @@ app.add_middleware(
 
 
 @app.route("/{path:path}", methods=["OPTIONS"])
-async def options_handler(path: str):
+async def options_handler(path: str) -> JSONResponse:
     return JSONResponse(content={"message": "ok"}, status_code=200)
 
 

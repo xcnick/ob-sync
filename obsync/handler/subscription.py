@@ -1,11 +1,12 @@
 import time
+
 from fastapi import APIRouter
 from fastapi.requests import Request
 from fastapi.responses import JSONResponse
 
 
 class SubscriptionHandler(object):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.router = APIRouter()
         self.router.add_route(

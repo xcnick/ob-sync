@@ -1,7 +1,8 @@
 import time
-import bcrypt
-from uuid import UUID, uuid1
 from typing import List, Optional
+from uuid import UUID, uuid1
+
+import bcrypt
 from pony.orm import (
     db_session,
     delete,
@@ -9,9 +10,9 @@ from pony.orm import (
 )
 from pydantic import BaseModel, ConfigDict
 
-from obsync.utils.scrypt import make_key_hash
+from obsync.db.vault import Share, User, Vault
 from obsync.utils.config import DOMAIN_NAME
-from obsync.db.vault import Vault, Share, User
+from obsync.utils.scrypt import make_key_hash
 
 
 class VaultModel(BaseModel):
@@ -72,7 +73,7 @@ def get_vault_shares(vault_id: UUID) -> List[ShareModel]:
 
 
 @db_session
-def get_shared_vaults(email: str) -> List[ShareModel]:
+def get_shared_vaults(email: str) -> List[VaultModel]:
     vaults = select(
         v
         for v in Vault
@@ -184,7 +185,7 @@ def set_vault_version(id: UUID, version: int) -> None:
 
 
 @db_session
-def get_vaults(email: str) -> List[VaultModel]:
+def get_vaults(email: str) -> Optional[List[VaultModel]]:
     vaults = select(v for v in Vault if v.user_email == email)
     return (
         None

@@ -1,18 +1,19 @@
-import jwt
 import time
-from uuid import uuid1, UUID
+from uuid import UUID, uuid1
+
+import jwt
 from fastapi import APIRouter
 from fastapi.requests import Request
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, ValidationError
 
-from obsync.db.vault_schema import login, user_info
+from obsync.db.vault_schema import login, new_user, user_info
 from obsync.handler.utils import get_jwt_email
-from obsync.utils.config import secret
+from obsync.utils.config import SIGNUP_KEY, secret
 
 
 class UserHandler(object):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.router = APIRouter()
         self.router.add_route("/signin", self.sign_in, methods=["POST"])
@@ -59,7 +60,7 @@ class UserHandler(object):
             status_code=200,
         )
 
-    async def user_info(self, request: Request) -> JSONResponse:
+    async def user_info(self, request: Request) -> Response:
         class Req(BaseModel):
             model_config = ConfigDict(from_attributes=True)
 
@@ -108,7 +109,42 @@ class UserHandler(object):
         )
 
     async def sign_up(self, request: Request) -> JSONResponse:
-        pass
+        class Req(BaseModel):
+            model_config = ConfigDict(from_attributes=True)
+
+            email: str
+            password: str
+            fullname: str
+            signup_key: str
+
+        class Res(BaseModel):
+            model_config = ConfigDict(from_attributes=True)
+
+            email: str
+            name: str
+
+        req_json = await request.json()
+        try:
+            req = Req.model_validate(req_json)
+        except ValidationError as e:
+            return JSONResponse(content=e, status_code=400)
+
+        if SIGNUP_KEY is not None and req.signup_key != SIGNUP_KEY:
+            return JSONResponse(content="Invalid signup key", status_code=400)
+
+        user_model = new_user(
+            name=req.fullname, email=req.email, password=req.password.strip()
+        )
+        if user_model is None:
+            return JSONResponse(content="Signup failed", status_code=500)
+
+        return JSONResponse(
+            content=Res(
+                email=req.email,
+                name=req.fullname,
+            ).model_dump(),
+            status_code=200,
+        )
 
     async def sign_out(self, request: Request) -> JSONResponse:
         return JSONResponse(content={}, status_code=200)

@@ -1,6 +1,7 @@
-import jwt
 import random
 import string
+
+import jwt
 
 
 def get_jwt_email(jwt_string: str, secret: bytes) -> str:

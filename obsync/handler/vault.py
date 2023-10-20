@@ -1,26 +1,27 @@
+from typing import List, Optional
 from uuid import UUID
+
 from fastapi import APIRouter
 from fastapi.requests import Request
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, ValidationError
-from typing import List, Optional
 
 from obsync.db.vault_schema import (
+    VaultModel,
     delete_vault,
-    has_access_to_vault,
+    get_shared_vaults,
     get_vault,
     get_vaults,
-    get_shared_vaults,
+    has_access_to_vault,
     new_vault,
     user_info,
-    VaultModel,
 )
-from obsync.handler.utils import get_jwt_email, generate_password
+from obsync.handler.utils import generate_password, get_jwt_email
 from obsync.utils.config import secret
 
 
 class VaultHandler(object):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.router = APIRouter()
         self.router.add_route("/list", self.list_vault, methods=["POST"])
@@ -28,7 +29,7 @@ class VaultHandler(object):
         self.router.add_route("/delete", self.delete_vault, methods=["POST"])
         self.router.add_route("/access", self.access_vault, methods=["POST"])
 
-    async def list_vault(self, request: Request) -> JSONResponse:
+    async def list_vault(self, request: Request) -> Response:
         class Req(BaseModel):
             model_config = ConfigDict(from_attributes=True)
 
@@ -67,7 +68,7 @@ class VaultHandler(object):
             status_code=200,
         )
 
-    async def create_vault(self, request: Request) -> JSONResponse:
+    async def create_vault(self, request: Request) -> Response:
         class Req(BaseModel):
             model_config = ConfigDict(from_attributes=True)
 

@@ -1,4 +1,5 @@
 import argparse
+
 from obsync.db.vault_schema import new_user
 
 
