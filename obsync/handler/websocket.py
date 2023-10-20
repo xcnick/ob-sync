@@ -259,7 +259,17 @@ class WebSocketHandler(object):
                         if len(files) == 0:
                             await websocket.send_json({"error": str(err)})
                             return
-                        await websocket.send_json({"items": files})
+                        file_dumps = list(
+                            map(
+                                lambda f: {
+                                    k: str(v) if isinstance(v, UUID) else v
+                                    for k, v in f.model_dump().items()
+                                    if k != "data"
+                                },
+                                files,
+                            )
+                        )
+                        await websocket.send_json({"items": file_dumps})
 
                     elif op == "restore":
                         restore = m.get("uid")

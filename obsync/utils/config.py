@@ -3,10 +3,7 @@ import pickle
 
 PROVIDER = "sqlite"
 
-vault_filename = os.path.join(os.environ.get("DB_PATH", "."), "vault.db")
-vault_files_filename = os.path.join(
-    os.environ.get("DB_PATH", "."), "vault_files.db"
-)
+VAULT_DB = os.path.join(os.environ.get("DB_PATH", "."), "vaults.db")
 
 DOMAIN_NAME = os.environ.get("DOMAIN_NAME", "localhost:3000")
 MAX_STORAGE_BYTES = (

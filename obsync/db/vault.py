@@ -1,5 +1,5 @@
 from uuid import UUID
-from obsync.utils.config import PROVIDER, vault_filename
+from obsync.utils.config import PROVIDER, VAULT_DB
 from pony.orm import (
     Database,
     PrimaryKey,
@@ -8,7 +8,7 @@ from pony.orm import (
 )
 
 db = Database()
-db.bind(provider=PROVIDER, filename=vault_filename, create_db=True)
+db.bind(provider=PROVIDER, filename=VAULT_DB, create_db=True)
 
 
 class Vault(db.Entity):
