@@ -1,9 +1,8 @@
 from typing import List, Optional
-from uuid import UUID
 
 from fastapi import APIRouter
 from fastapi.requests import Request
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 from obsync.db.vault_schema import (
@@ -29,7 +28,7 @@ class VaultHandler(object):
         self.router.add_route("/delete", self.delete_vault, methods=["POST"])
         self.router.add_route("/access", self.access_vault, methods=["POST"])
 
-    async def list_vault(self, request: Request) -> Response:
+    async def list_vault(self, request: Request) -> JSONResponse:
         class Req(BaseModel):
             model_config = ConfigDict(from_attributes=True)
 
@@ -59,16 +58,15 @@ class VaultHandler(object):
         if shared is None:
             return JSONResponse(content="Invalid email", status_code=500)
 
-        return Response(
+        return JSONResponse(
             content=Res(
                 shared=shared,
                 vaults=vaults,
-            ).model_dump_json(),
-            media_type="application/json",
+            ).model_dump(),
             status_code=200,
         )
 
-    async def create_vault(self, request: Request) -> Response:
+    async def create_vault(self, request: Request) -> JSONResponse:
         class Req(BaseModel):
             model_config = ConfigDict(from_attributes=True)
 
@@ -125,9 +123,8 @@ class VaultHandler(object):
         if vault is None:
             return JSONResponse(content="Invalid vault", status_code=500)
 
-        return Response(
-            content=vault.model_dump_json(),
-            media_type="application/json",
+        return JSONResponse(
+            content=vault.model_dump(),
             status_code=200,
         )
 
@@ -148,7 +145,7 @@ class VaultHandler(object):
         if email is None:
             return JSONResponse(content="Invalid token", status_code=401)
 
-        vault_deleted = delete_vault(id=UUID(req.vault_uid), email=email)
+        vault_deleted = delete_vault(id=req.vault_uid, email=email)
         if vault_deleted > 0:
             return JSONResponse(content={}, status_code=200)
         else:
@@ -180,12 +177,12 @@ class VaultHandler(object):
         if email is None:
             return JSONResponse(content="Invalid token", status_code=401)
 
-        if not has_access_to_vault(vault_id=UUID(req.vault_uid), email=email):
+        if not has_access_to_vault(vault_id=req.vault_uid, email=email):
             return JSONResponse(
                 content="You do not have access to this vault", status_code=401
             )
 
-        vault = get_vault(id=UUID(req.vault_uid), keyhash=req.keyhash)
+        vault = get_vault(id=req.vault_uid, keyhash=req.keyhash)
         if vault is None:
             return JSONResponse(content="Error vault", status_code=500)
 

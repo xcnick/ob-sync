@@ -1,5 +1,3 @@
-from uuid import UUID
-
 from pony.orm import (
     Database,
     Optional,
@@ -16,7 +14,7 @@ db.bind(provider=PROVIDER, filename=VAULT_DB, create_db=True)
 class Vault(db.Entity):
     _table_ = "vault"
 
-    id = PrimaryKey(UUID, auto=True)
+    id = PrimaryKey(str, auto=True)
     user_email = Required(str)
     created = Required(int, size=64)
     host = Required(str)
@@ -30,10 +28,10 @@ class Vault(db.Entity):
 class Share(db.Entity):
     _table_ = "share"
 
-    id = PrimaryKey(UUID, auto=True)
+    uid = PrimaryKey(str, auto=True)
     email = Required(str)
     name = Required(str)
-    vault_id = Required(UUID)
+    vault_id = Required(str)
     accepted = Required(bool, default=True)
 
 

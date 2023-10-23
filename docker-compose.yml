@@ -1,0 +1,12 @@
+version: '3.5'
+
+services:
+  ob-sync:
+    restart: always
+    image: fastapi:0.2
+    container_name: ob-sync
+    ports:
+      - 3009:8080
+    command: gunicorn -w 1 -b 0.0.0.0:8080 -e DB_PATH=/workspace/db_files -t 600 -k uvicorn.workers.UvicornWorker start_server:app
+    volumes:
+      - "$PWD:/workspace"

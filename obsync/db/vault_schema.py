@@ -1,6 +1,6 @@
 import time
 from typing import List, Optional
-from uuid import UUID, uuid1
+from uuid import uuid1
 
 import bcrypt
 from pony.orm import (
@@ -18,7 +18,7 @@ from obsync.utils.scrypt import make_key_hash
 class VaultModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: UUID
+    id: str
     user_email: str
     created: int
     host: str
@@ -32,10 +32,10 @@ class VaultModel(BaseModel):
 class ShareModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: UUID
+    uid: str
     email: str
     name: str
-    vault_id: UUID
+    vault_id: str
     accepted: int
 
 
@@ -49,16 +49,16 @@ class UserModel(BaseModel):
 
 
 @db_session
-def share_vault_invite(email: str, name: str, vault_id: UUID) -> ShareModel:
+def share_vault_invite(email: str, name: str, vault_id: str) -> ShareModel:
     share = Share(id=uuid1(), email=email, name=name, vault_id=vault_id)
     return ShareModel.model_validate(share)
 
 
 @db_session
-def share_vault_revoke(share_id: UUID, vault_id: UUID, email: str) -> int:
+def share_vault_revoke(share_id: str, vault_id: str, email: str) -> int:
     if share_id is not None:
         return delete(
-            s for s in Share if s.id == share_id and s.vault_id == vault_id
+            s for s in Share if s.uid == share_id and s.vault_id == vault_id
         )
     else:
         return delete(
@@ -67,7 +67,7 @@ def share_vault_revoke(share_id: UUID, vault_id: UUID, email: str) -> int:
 
 
 @db_session
-def get_vault_shares(vault_id: UUID) -> List[ShareModel]:
+def get_vault_shares(vault_id: str) -> List[ShareModel]:
     shares = select(s for s in Share if s.vault_id == vault_id)
     return [ShareModel.model_validate(share) for share in shares]
 
@@ -90,7 +90,7 @@ def get_user_info(email: str) -> UserModel:
 
 
 @db_session
-def is_vault_owner(vault_id: UUID, email: str) -> bool:
+def is_vault_owner(vault_id: str, email: str) -> bool:
     return (
         select(
             v for v in Vault if v.id == vault_id and v.user_email == email
@@ -100,7 +100,7 @@ def is_vault_owner(vault_id: UUID, email: str) -> bool:
 
 
 @db_session
-def has_access_to_vault(vault_id: UUID, email: str) -> bool:
+def has_access_to_vault(vault_id: str, email: str) -> bool:
     if is_vault_owner(vault_id=vault_id, email=email):
         return True
     return (
@@ -152,7 +152,7 @@ def new_vault(
         keyhash = make_key_hash(password, salt)
 
     vault = Vault(
-        id=uuid1(),
+        id=str(uuid1()),
         user_email=user_email,
         created=int(time.time()) * 1000,
         host=DOMAIN_NAME,
@@ -166,12 +166,12 @@ def new_vault(
 
 
 @db_session
-def delete_vault(id: UUID, email: str) -> int:
+def delete_vault(id: str, email: str) -> int:
     return delete(v for v in Vault if v.id == id and v.user_email == email)
 
 
 @db_session
-def get_vault(id: UUID, keyhash: str) -> Optional[VaultModel]:
+def get_vault(id: str, keyhash: str) -> Optional[VaultModel]:
     vault = select(
         v for v in Vault if v.id == id and v.keyhash == keyhash
     ).first()
@@ -179,7 +179,7 @@ def get_vault(id: UUID, keyhash: str) -> Optional[VaultModel]:
 
 
 @db_session
-def set_vault_version(id: UUID, version: int) -> None:
+def set_vault_version(id: str, version: int) -> None:
     vault = select(v for v in Vault if v.id == id).first()
     vault.version = version
 

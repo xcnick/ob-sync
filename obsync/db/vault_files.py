@@ -1,5 +1,3 @@
-from uuid import UUID
-
 from pony.orm import (
     Database,
     Optional,
@@ -16,8 +14,8 @@ db.bind(provider=PROVIDER, filename=VAULT_DB, create_db=True)
 class VaultFile(db.Entity):
     _table_ = "vault_file"
 
-    id = PrimaryKey(UUID, auto=True)
-    vault_id = Optional(UUID)
+    uid = PrimaryKey(int, auto=True)
+    vault_id = Optional(str)
     hash = Optional(str)
     path = Optional(str)
     extension = Optional(str)

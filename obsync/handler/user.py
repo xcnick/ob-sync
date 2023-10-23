@@ -1,10 +1,10 @@
 import time
-from uuid import UUID, uuid1
+from uuid import uuid1
 
 import jwt
 from fastapi import APIRouter
 from fastapi.requests import Request
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 from obsync.db.vault_schema import login, new_user, user_info
@@ -40,12 +40,14 @@ class UserHandler(object):
         try:
             req = Req.model_validate(req_json)
         except ValidationError as e:
-            return JSONResponse(content=e, status_code=400)
+            return JSONResponse(content={"error": e}, status_code=400)
 
         user_info = login(email=req.email, password=req.password)
         if user_info is None:
+            print("Invalid password")
             return JSONResponse(
-                content="Invalid email or password", status_code=200
+                content={"error": "Invalid password or email"},
+                status_code=200,
             )
 
         payload = {"email": user_info.email}
@@ -60,7 +62,7 @@ class UserHandler(object):
             status_code=200,
         )
 
-    async def user_info(self, request: Request) -> Response:
+    async def user_info(self, request: Request) -> JSONResponse:
         class Req(BaseModel):
             model_config = ConfigDict(from_attributes=True)
 
@@ -77,7 +79,7 @@ class UserHandler(object):
 
             model_config = ConfigDict(from_attributes=True)
 
-            uid: UUID
+            uid: str
             email: str
             name: str
             payment: str = ""
@@ -90,21 +92,24 @@ class UserHandler(object):
         try:
             req = Req.model_validate(req_json)
         except ValidationError as e:
-            return JSONResponse(content=e, status_code=400)
+            return JSONResponse(content={"error": e}, status_code=400)
         email = get_jwt_email(jwt_string=req.token, secret=secret)
         if email is None:
-            return JSONResponse(content="Invalid token", status_code=200)
+            return JSONResponse(
+                content={"error": "not logged in"}, status_code=200
+            )
         user = user_info(email=email)
         if user is None:
-            return JSONResponse(content="Invalid token", status_code=200)
+            return JSONResponse(
+                content={"error": "not logged in"}, status_code=200
+            )
 
-        return Response(
+        return JSONResponse(
             content=Res(
-                uid=uuid1(),
+                uid=str(uuid1()),
                 email=email,
                 name=user.name,
-            ).model_dump_json(),
-            media_type="application/json",
+            ).model_dump(),
             status_code=200,
         )
 
@@ -130,13 +135,17 @@ class UserHandler(object):
             return JSONResponse(content=e, status_code=400)
 
         if SIGNUP_KEY is not None and req.signup_key != SIGNUP_KEY:
-            return JSONResponse(content="Invalid signup key", status_code=400)
+            return JSONResponse(
+                content={"error": "Invalid signup key"}, status_code=400
+            )
 
         user_model = new_user(
             name=req.fullname, email=req.email, password=req.password.strip()
         )
         if user_model is None:
-            return JSONResponse(content="Signup failed", status_code=500)
+            return JSONResponse(
+                content={"error": "not sign up"}, status_code=500
+            )
 
         return JSONResponse(
             content=Res(
@@ -146,5 +155,5 @@ class UserHandler(object):
             status_code=200,
         )
 
-    async def sign_out(self, request: Request) -> JSONResponse:
+    async def sign_out(self, _: Request) -> JSONResponse:
         return JSONResponse(content={}, status_code=200)

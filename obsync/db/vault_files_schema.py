@@ -1,9 +1,8 @@
 import time
 from typing import Any, Dict, List, Optional
-from uuid import UUID
 
-from pony.orm import db_session, delete, desc, select
-from pydantic import BaseModel, ConfigDict
+from pony.orm import commit, db_session, delete, desc, select
+from pydantic import BaseModel, ConfigDict, Field
 
 from obsync.db.vault_files import VaultFile
 
@@ -11,8 +10,8 @@ from obsync.db.vault_files import VaultFile
 class VaultFileModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: UUID
-    vault_id: Optional[UUID]
+    uid: int
+    vault_id: Optional[str]
     hash: Optional[str]
     path: Optional[str]
     extension: Optional[str]
@@ -21,18 +20,13 @@ class VaultFileModel(BaseModel):
     modified: Optional[int]
     folder: Optional[bool]
     deleted: Optional[bool]
-    data: Optional[bytes]
-    newest: bool
-    is_snapshot: bool
-
-
-class FileRepsonse(BaseModel):
-    vault_file: VaultFileModel
-    op: str
+    data: Optional[bytes] = Field(exclude=True)
+    newest: bool = True
+    is_snapshot: bool = False
 
 
 @db_session
-def snapshot(vault_id: UUID) -> None:
+def snapshot(vault_id: str) -> None:
     # Set newest files to be snapshots
     files = select(
         f for f in VaultFile if f.vault_id == vault_id and f.newest is True
@@ -55,10 +49,11 @@ def snapshot(vault_id: UUID) -> None:
 
 
 @db_session
-def restore_file(id: UUID) -> Optional[FileRepsonse]:
-    vault_file = select(f for f in VaultFile if f.id == id).first()
+def restore_file(uid: int) -> Optional[VaultFileModel]:
+    vault_file = select(f for f in VaultFile if f.uid == uid).first()
     if vault_file is None:
         return None
+    vault_file.uid = uid
     vault_file.deleted = False
     vault_file.newest = True
     ori_vault_file = select(
@@ -67,16 +62,16 @@ def restore_file(id: UUID) -> Optional[FileRepsonse]:
         if f.path == vault_file.path and f.deleted is False
     )
     ori_vault_file.newest = False
-    return FileRepsonse(vault_file=vault_file, op="push")
+    return VaultFileModel.model_validate(vault_file)
 
 
 @db_session
-def get_vault_size(vault_id: UUID) -> int:
+def get_vault_size(vault_id: str) -> int:
     return select(f.size for f in VaultFile if f.vault_id == vault_id).sum()
 
 
 @db_session
-def get_vault_files(vault_id: UUID) -> List[VaultFileModel]:
+def get_vault_files(vault_id: str) -> List[VaultFileModel]:
     files = select(
         f
         for f in VaultFile
@@ -86,8 +81,8 @@ def get_vault_files(vault_id: UUID) -> List[VaultFileModel]:
 
 
 @db_session
-def get_file(id: UUID) -> Optional[VaultFileModel]:
-    file = select(f for f in VaultFile if f.id == id).first()
+def get_file(uid: int) -> Optional[VaultFileModel]:
+    file = select(f for f in VaultFile if f.uid == uid).first()
     return None if file is None else VaultFileModel.model_validate(file)
 
 
@@ -108,7 +103,7 @@ def get_deleted_files() -> List[VaultFileModel]:
 
 
 @db_session
-def insert_metadata(vault_file: Any) -> UUID:
+def insert_metadata(vault_file: Any) -> int:
     if vault_file.created == 0:
         vault_file.created = int(time.time()) * 1000
     if vault_file.modified == 0:
@@ -121,12 +116,13 @@ def insert_metadata(vault_file: Any) -> UUID:
         ori_file.newest = False
 
     new_file = VaultFile(**vault_file.model_dump())
-    return new_file.id
+    commit()
+    return new_file.uid
 
 
 @db_session
-def insert_data(id: UUID, data: bytes) -> None:
-    file = select(f for f in VaultFile if f.id == id).first()
+def insert_data(uid: int, data: bytes) -> None:
+    file = select(f for f in VaultFile if f.uid == uid).first()
     file.data = data
 
 
