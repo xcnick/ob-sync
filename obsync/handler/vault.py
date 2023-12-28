@@ -3,8 +3,6 @@ from typing import List, Optional
 from fastapi import APIRouter
 from fastapi.requests import Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, ConfigDict, ValidationError
-
 from obsync.db.vault_schema import (
     VaultModel,
     delete_vault,
@@ -17,6 +15,7 @@ from obsync.db.vault_schema import (
 )
 from obsync.handler.utils import generate_password, get_jwt_email
 from obsync.utils.config import secret
+from pydantic import BaseModel, ConfigDict, ValidationError
 
 
 class VaultHandler(object):
@@ -39,6 +38,7 @@ class VaultHandler(object):
 
             shared: List[VaultModel]
             vaults: List[VaultModel]
+            limit: int
 
         req_json = await request.json()
         try:
@@ -62,6 +62,7 @@ class VaultHandler(object):
             content=Res(
                 shared=shared,
                 vaults=vaults,
+                limit=100,
             ).model_dump(),
             status_code=200,
         )
